@@ -11,26 +11,25 @@ from sklearn.metrics import f1_score
 # Set plotting style
 sns.set_theme(style="whitegrid")
 
-# =============================================================================
-# DATASET SIMULATION
-# =============================================================================
-# Simulating a telecom churn dataset: 1000 samples, 20 features, binary target
-# We use a slight imbalance (80/20) to mimic churn behavior.
-X, y = make_classification(
-    n_samples=1000, 
-    n_features=20, 
-    n_informative=15, 
-    n_redundant=5, 
-    weights=[0.8, 0.2], 
-    flip_y=0.05, 
-    random_state=42
-)
-feature_names = [f"feature_{i}" for i in range(20)]
-df = pd.DataFrame(X, columns=feature_names)
-df['target'] = y
+
+data = pd.read_csv('data/telecom_churn.csv')
+df = data.drop(columns=['customer_id'])
+
+# 1. Preprocessing: Convert total_charges to numeric and handle missing values
+df['total_charges'] = pd.to_numeric(df['total_charges'], errors='coerce')
+df = df.dropna()
+
+# 2. Encode categorical variables
+df = pd.get_dummies(df, drop_first=True)
+
+y = df['churned'].values
+X = df.drop(columns=['churned']).values
 
 print(f"Dataset Shape: {X.shape}")
 print(f"Class Distribution:\n{pd.Series(y).value_counts(normalize=True)}")
+
+
+
 
 # =============================================================================
 # PART 1 — GridSearchCV (Random Forest)
@@ -50,9 +49,9 @@ param_grid = {
 cv_inner = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
 grid_search = GridSearchCV(
-    estimator=rf,
+    estimator=RandomForestClassifier(class_weight='balanced', random_state=42),
     param_grid=param_grid,
-    cv=cv_inner,
+    cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42),
     scoring='f1',
     n_jobs=-1,
     return_train_score=True
